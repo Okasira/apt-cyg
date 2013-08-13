@@ -1,4 +1,5 @@
 #!/bin/bash
+#vim: set foldmethod=marker
 
 # apt-cyg: install tool for cygwin similar to debian apt-get
 #
@@ -41,6 +42,7 @@ function usage()
   echo "  \"apt-cyg search <patterns>\" to find packages matching patterns (alias of find)"
   echo "  \"apt-cyg describe <patterns>\" to describe packages matching patterns"
   echo "  \"apt-cyg packageof <commands or files>\" to locate parent packages"
+  echo "  \"apt-cyg reinstall <commands or files>\" to reinstall(remove & install) packages"
   echo "Options:"
   echo "  --mirror, -m <url> : set mirror"
   echo "  --cache, -c <dir>  : set cache"
@@ -221,7 +223,7 @@ function process_args () {
        shift
      ;;
 
-      update|show|search|find|describe|packageof|install|remove)
+      update|show|search|find|describe|packageof|install|remove|reinstall)
         if test "-$command-" = "--"
         then
           command=$1
@@ -265,91 +267,10 @@ then
   packages="$packages $filepackages"
 fi
 
-
-case "$command" in
-
-  update)
-
-    findworkspace
-    getsetup
-
-  ;;
-
-
-  show)
-
-    echo 1>&2 The following packages are installed:
-    cat /etc/setup/installed.db | awk '/[^ ]+ [^ ]+ 0/ {print $1}'
-
-  ;;
-
-
-  find|search)
-
-    checkpackages
-    findworkspace
-    getsetup
-
-    for pkg in $packages
-    do
-      echo ""
-      echo Searching for installed packages matching $pkg:
-      awk -v nocase="$nocase" '/[^ ]+ [^ ]+ 0/ { if (nocase == 1 ) { IGNORECASE=1 } if ($1 ~ query) { print $1 } }' query="$pkg" /etc/setup/installed.db
-      echo ""
-      echo Searching for installable packages matching $pkg:
-      if [[ "$nocase" -eq "1" ]] ; then
-        cat setup.ini | awk -v query="$pkg" \
-          'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {IGNORECASE=1; if ($1 ~ query) {print $1}}'
-      else
-        cat setup.ini | awk -v query="$pkg" \
-          'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {if ($1 ~ query) {print $1}}'
-      fi
-    done
-
-  ;;
-
-
-  describe)
-
-    checkpackages
-    findworkspace
-    getsetup
-    for pkg in $packages
-    do
-      echo ""
-      cat setup.ini | awk -v nocase="$nocase" -v query="$pkg" \
-        'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {if (nocase == 1 ) { IGNORECASE=1 } if ($1 ~ query) {print $0 "\n"}}'
-    done
-
-  ;;
-
-
-  packageof)
-
-    checkpackages
-    for pkg in $packages
-    do
-      key=`which "$pkg" 2>/dev/null | sed "s:^/::"`
-      if test "-$key-" = "--"
-      then
-        key="$pkg"
-      fi
-      for manifest in /etc/setup/*.lst.gz
-      do
-        found=`cat $manifest | gzip -d | grep -c "$key"`
-        if test $found -gt 0
-        then
-          package=`echo $manifest | sed -e "s:/etc/setup/::" -e "s/.lst.gz//"`
-          echo Found $key in the package $package
-        fi
-      done
-    done
-
-  ;;
-
-
-  install)
-
+#-------------------------------------------------------
+# install command function {{{
+function Command_Install()
+{
     checkpackages
     findworkspace
     getsetup
@@ -518,12 +439,14 @@ case "$command" in
     echo Package $pkg installed
 
     done
+}
+# install command function end }}}
+#-------------------------------------------------------
 
-  ;;
-
-
-  remove)
-
+#-------------------------------------------------------
+# remove command function {{{
+function Command_Remove()
+{
     checkpackages
     for pkg in $packages
     do
@@ -570,6 +493,99 @@ case "$command" in
 
     done
 
+}
+# remove command function end }}}
+#-------------------------------------------------------
+
+case "$command" in
+
+  update)
+
+    findworkspace
+    getsetup
+
+  ;;
+
+
+  show)
+
+    echo 1>&2 The following packages are installed:
+    cat /etc/setup/installed.db | awk '/[^ ]+ [^ ]+ 0/ {print $1}'
+
+  ;;
+
+
+  find|search)
+
+    checkpackages
+    findworkspace
+    getsetup
+
+    for pkg in $packages
+    do
+      echo ""
+      echo Searching for installed packages matching $pkg:
+      awk -v nocase="$nocase" '/[^ ]+ [^ ]+ 0/ { if (nocase == 1 ) { IGNORECASE=1 } if ($1 ~ query) { print $1 } }' query="$pkg" /etc/setup/installed.db
+      echo ""
+      echo Searching for installable packages matching $pkg:
+      if [[ "$nocase" -eq "1" ]] ; then
+        cat setup.ini | awk -v query="$pkg" \
+          'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {IGNORECASE=1; if ($1 ~ query) {print $1}}'
+      else
+        cat setup.ini | awk -v query="$pkg" \
+          'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {if ($1 ~ query) {print $1}}'
+      fi
+    done
+
+  ;;
+
+
+  describe)
+
+    checkpackages
+    findworkspace
+    getsetup
+    for pkg in $packages
+    do
+      echo ""
+      cat setup.ini | awk -v nocase="$nocase" -v query="$pkg" \
+        'BEGIN{RS="\n\n@ "; FS="\n"; ORS="\n"} {if (nocase == 1 ) { IGNORECASE=1 } if ($1 ~ query) {print $0 "\n"}}'
+    done
+
+  ;;
+
+
+  packageof)
+
+    checkpackages
+    for pkg in $packages
+    do
+      key=`which "$pkg" 2>/dev/null | sed "s:^/::"`
+      if test "-$key-" = "--"
+      then
+        key="$pkg"
+      fi
+      for manifest in /etc/setup/*.lst.gz
+      do
+        found=`cat $manifest | gzip -d | grep -c "$key"`
+        if test $found -gt 0
+        then
+          package=`echo $manifest | sed -e "s:/etc/setup/::" -e "s/.lst.gz//"`
+          echo Found $key in the package $package
+        fi
+      done
+    done
+
+  ;;
+
+
+  install)
+	Command_Install
+  ;;
+
+
+  remove)
+	Command_Remove
   ;;
 
   *)
@@ -579,3 +595,4 @@ case "$command" in
   ;;
 
 esac
+
