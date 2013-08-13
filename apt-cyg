@@ -588,6 +588,11 @@ case "$command" in
 	Command_Remove
   ;;
 
+  reinstall)
+	Command_Remove
+	Command_Install
+  ;;
+
   *)
 
     usage
