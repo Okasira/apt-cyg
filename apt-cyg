@@ -95,7 +95,7 @@ function findworkspace()
       http*|ftp*) mirror="$tmp" ;;
     esac
   fi
-  mirrordir="`echo "$mirror" | sed -e "s/:/%3a/g" -e "s:/:%2f:g"`%2f"
+  mirrordir="`echo "$mirror" | sed -e "s/:/%3a/g" -e "s:/:%2f:g"`"
 
   arch=""
   cygver="`uname -r | sed -e "s/^\([0-9\.]\+\).*$/\1/"`"
